@@ -20,7 +20,7 @@ from litefupzl.browser.navigation import handle_cf_challenge, is_cf_challenge, p
 from litefupzl.discourse import selectors
 from litefupzl.discourse.http_bypass import (
     extract_current_username_via_http,
-    get_latest_topics_via_http,
+    get_latest_topics_pages_via_http,
     get_user_info_via_http,
     is_cookie_authenticated_via_http,
     probe_cookie_login_state_via_http,
@@ -270,9 +270,10 @@ async def run_slot_session(slot: SlotConfig, config, recorder: PublicRecorder) -
             if topic_index >= len(topic_list):
                 try:
                     refill = await asyncio.to_thread(
-                        get_latest_topics_via_http,
+                        get_latest_topics_pages_via_http,
                         slot_cookies,
                         _BASE_URL,
+                        pages=_latest_page_count_for_duration(slot.duration_minutes),
                         user_agent=browser_user_agent,
                     )
                     for topic in refill:
@@ -1378,12 +1379,17 @@ async def _extract_username(page) -> str | None:
 async def _build_topic_queue(slot_cookies: list[dict], config, *, user_agent: str | None = None) -> list[Topic]:
     """Build a read-only topic queue from latest unread/unseen topics."""
     return await asyncio.to_thread(
-        get_latest_topics_via_http,
+        get_latest_topics_pages_via_http,
         slot_cookies,
         _BASE_URL,
+        pages=_latest_page_count_for_duration(config.duration_minutes),
         user_agent=user_agent,
     )
 
+
+def _latest_page_count_for_duration(duration_minutes: int) -> int:
+    """Map a slot duration to the number of latest.json pages to inspect."""
+    return max(1, (int(duration_minutes) + 4) // 5)
 
 
 def _finish_result(result: SlotResult) -> SlotResult:

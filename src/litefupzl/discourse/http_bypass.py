@@ -310,3 +310,27 @@ def get_latest_topics_via_http(cookies: list[dict], base_url: str, *, user_agent
     """Fetch latest unread/unseen topics via curl_cffi."""
     data = fetch_json(cookies, f"{base_url}/latest.json", referer=base_url, user_agent=user_agent)
     return _extract_topics(data, base_url, unread_only=True)
+
+
+def get_latest_topics_pages_via_http(
+    cookies: list[dict],
+    base_url: str,
+    *,
+    pages: int,
+    user_agent: str | None = None,
+) -> list[Topic]:
+    """Fetch unread/unseen topics from the first N latest.json pages."""
+    page_count = max(1, int(pages))
+    topics: list[Topic] = []
+    seen_ids: set[int] = set()
+
+    for page in range(page_count):
+        url = f"{base_url}/latest.json" if page == 0 else f"{base_url}/latest.json?page={page}"
+        data = fetch_json(cookies, url, referer=base_url, user_agent=user_agent)
+        for topic in _extract_topics(data, base_url, unread_only=True):
+            if topic.id in seen_ids:
+                continue
+            seen_ids.add(topic.id)
+            topics.append(topic)
+
+    return topics
